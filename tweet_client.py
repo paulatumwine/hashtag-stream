@@ -4,6 +4,7 @@ import requests
 import requests_oauthlib
 import json
 
+
 def get_tweets():
 	print "DEBUG: " , str(sys.argv)
 	my_auth = requests_oauthlib.OAuth1(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
@@ -15,6 +16,7 @@ def get_tweets():
 	print(query_url, response)
 	return response
 
+
 def send_tweets_to_spark(http_resp, tcp_connection):
 	for line in http_resp.iter_lines():
 		try:
@@ -24,8 +26,9 @@ def send_tweets_to_spark(http_resp, tcp_connection):
 			print ("------------------------------------------")
 			tcp_connection.send(tweet_text + '\n')
 		except:
-			e = sys.exc_info()[0]
+			e = sys.exc_info()[1]
 			print("ERROR: %s" % e)
+
 
 TCP_IP = "localhost"
 TCP_PORT = 9009
