@@ -1,4 +1,3 @@
-import socket
 import sys
 import requests
 import requests_oauthlib
@@ -28,7 +27,7 @@ def send_tweets_to_spark(http_resp):
         try:
             full_tweet = json.loads(line)
             tweet_text = full_tweet['text']
-            print("DEBUG: sending - " + tweet_text)
+            print("DEBUG: sending to Kafka - " + tweet_text)
             # tcp_connection.send(tweet_text + '\n')
             producer.send("hashtags", value=tweet_text)
         except:

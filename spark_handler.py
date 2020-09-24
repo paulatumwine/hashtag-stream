@@ -6,11 +6,22 @@ import requests
 import happybase
 from kafka import KafkaConsumer
 from json import loads
+from pyspark.streaming.kafka import KafkaUtils
+
+
+"""
+spark-submit --jars lib/spark-streaming-kafka-0-8-assembly_2.11-2.4.7.jar spark_handler.py
+"""
+
 
 batch_size = 10
 host = "localhost"
 table_name = "hashtags"
 kafka_host = "localhost:9092"
+# Zookeeper instance on 2181 is being used by HBase
+zkQuorum = "localhost:2182"
+topic = "hashtags"
+group_id = "group-zero"
 
 
 def aggregate_tags_count(new_values, total_sum):
@@ -69,33 +80,43 @@ def save_to_hbase(df):
         print("ERROR: %s" % e)
 
 
+def split_line(line):
+    print("DEBUG: streaming from Kafka - " + line[1])
+    words = line[1].split(" ")
+    return words
+
+
 consumer = KafkaConsumer(
     "hashtags",
     bootstrap_servers=[kafka_host],
     auto_offset_reset="earliest",
     enable_auto_commit=True,
-    group_id="my-group",
+    group_id=group_id,
     value_deserializer=lambda x: loads(x.decode("utf-8")))
 
 conf = SparkConf()
 conf.setAppName("SparkHandler")
+conf.setMaster("local[*]")
 sc = SparkContext(conf=conf)
 sc.setLogLevel("ERROR")
 ssc = StreamingContext(sc, 2)
 ssc.checkpoint("handler-checkpoints")
 
 # dataStream = ssc.socketTextStream("localhost",9009)
-for message in consumer:
-    print("DEBUG: received - " + message.value)
-    try:
-        words = message.value.split(" ")
-        hashtags = filter(lambda w: '#' in w, words)
-        hashtag_counts = map(lambda x: (x, 1), hashtag_counts)
-        tags_totals = hashtags.updateStateByKey(aggregate_tags_count)
-        tags_totals.foreachRDD(process_rdd)
-    except:
-        e = sys.exc_info()
-        print("ERROR: %s" % e[1])
+dataStream = KafkaUtils.createStream(ssc, zkQuorum, group_id, {topic: 1})
+print("Debug One")
+try:
+    print("Debug Two")
+    # words = dataStream.flatMap(lambda line: line.split(" "))
+    words = dataStream.flatMap(split_line)
+    hashtags = words.filter(lambda w: '#' in w).map(lambda x: (x, 1))
+    tags_totals = hashtags.updateStateByKey(aggregate_tags_count)
+    tags_totals.foreachRDD(process_rdd)
+except:
+    e = sys.exc_info()
+    print("ERROR: %s" % e[1])
 
-# ssc.start()
-# ssc.awaitTermination()
+print("Debug Three")
+
+ssc.start()
+ssc.awaitTermination()
