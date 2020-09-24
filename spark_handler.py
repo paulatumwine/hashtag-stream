@@ -4,10 +4,13 @@ from pyspark.sql import Row, SQLContext
 import sys
 import requests
 import happybase
+from kafka import KafkaConsumer
+from json import loads
 
 batch_size = 10
 host = "localhost"
 table_name = "hashtags"
+kafka_host = "localhost:9092"
 
 
 def aggregate_tags_count(new_values, total_sum):
@@ -66,6 +69,14 @@ def save_to_hbase(df):
         print("ERROR: %s" % e)
 
 
+consumer = KafkaConsumer(
+    "hashtags",
+    bootstrap_servers=[kafka_host],
+    auto_offset_reset="earliest",
+    enable_auto_commit=True,
+    group_id="my-group",
+    value_deserializer=lambda x: loads(x.decode("utf-8")))
+
 conf = SparkConf()
 conf.setAppName("SparkHandler")
 sc = SparkContext(conf=conf)
@@ -73,16 +84,18 @@ sc.setLogLevel("ERROR")
 ssc = StreamingContext(sc, 2)
 ssc.checkpoint("handler-checkpoints")
 
-dataStream = ssc.socketTextStream("localhost",9009)
+# dataStream = ssc.socketTextStream("localhost",9009)
+for message in consumer:
+    print("DEBUG: received - " + message.value)
+    try:
+        words = message.value.split(" ")
+        hashtags = filter(lambda w: '#' in w, words)
+        hashtag_counts = map(lambda x: (x, 1), hashtag_counts)
+        tags_totals = hashtags.updateStateByKey(aggregate_tags_count)
+        tags_totals.foreachRDD(process_rdd)
+    except:
+        e = sys.exc_info()
+        print("ERROR: %s" % e[1])
 
-words = dataStream.flatMap(lambda line: line.split(" "))
-hashtags = words.filter(lambda w: '#' in w).map(lambda x: (x, 1))
-tags_totals = hashtags.updateStateByKey(aggregate_tags_count)
-try:
-    tags_totals.foreachRDD(process_rdd)
-except:
-    e = sys.exc_info()
-    print("ERROR: %s" % e[1])
-
-ssc.start()
-ssc.awaitTermination()
+# ssc.start()
+# ssc.awaitTermination()
