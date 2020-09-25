@@ -66,7 +66,7 @@ spark-submit --jars lib/spark-streaming-kafka-0-8-assembly_2.11-2.4.7.jar spark_
 You can navigate to `http://your_ip_address:4040` in your web browser to view the status of the Spark job, the executors running, etc.
 
 #### Visualize hashtag counts
-To run the `Flask` application:
+To run the `Flask` web front end application:
 ```
 python app.py
 ```

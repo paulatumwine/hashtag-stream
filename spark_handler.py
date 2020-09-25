@@ -104,9 +104,7 @@ ssc.checkpoint("handler-checkpoints")
 
 # dataStream = ssc.socketTextStream("localhost",9009)
 dataStream = KafkaUtils.createStream(ssc, zkQuorum, group_id, {topic: 1})
-print("Debug One")
 try:
-    print("Debug Two")
     # words = dataStream.flatMap(lambda line: line.split(" "))
     words = dataStream.flatMap(split_line)
     hashtags = words.filter(lambda w: '#' in w).map(lambda x: (x, 1))
@@ -115,8 +113,6 @@ try:
 except:
     e = sys.exc_info()
     print("ERROR: %s" % e[1])
-
-print("Debug Three")
 
 ssc.start()
 ssc.awaitTermination()
