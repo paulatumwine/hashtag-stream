@@ -1,4 +1,4 @@
-# Tweet Client
+# Hashtag Stream
 
 Extract trending #hashtags ;-) on a user's timeline. Which user? The one whose credentials you pass as args when you execute the `tweet_client.py` script. 
 
